@@ -1,4 +1,16 @@
 # -*- coding: utf-8 -*-
+# =============================================================================
+# [単語マスク対応表] テキスト置換でオリジナルに戻せます
+#
+#   公開版 (本ファイル)  →  オリジナル
+#   ----------------------------------------
+#   UNIT                 →  SSD
+#   PART                 →  CHIP
+#   batch                →  lot
+#   anomaly              →  defect
+#   filtered / filtering →  screened / screening
+#   release              →  retail
+# =============================================================================
 """
 商品フィルタリング分析 - 期間別統計 (拡張版評価指標付)
 
@@ -297,6 +309,26 @@ class EnhancedPeriodScreeningAnalysis:
 
         X = train_data[feature_cols].copy()
         y = train_data['y'].copy()
+
+        # Period型・文字列型など数値に変換できない列を除外
+        non_numeric = []
+        for col in X.columns:
+            if pd.api.types.is_period_dtype(X[col]):
+                non_numeric.append(col)
+            elif pd.api.types.is_object_dtype(X[col]) or pd.api.types.is_string_dtype(X[col]):
+                converted = pd.to_numeric(X[col], errors='coerce')
+                if converted.isna().all():
+                    non_numeric.append(col)
+                else:
+                    X[col] = converted
+        if non_numeric:
+            print(f"警告: 数値変換できない列を除外しました: {non_numeric}")
+            X = X.drop(columns=non_numeric)
+            feature_cols = [c for c in feature_cols if c not in non_numeric]
+
+        if not feature_cols:
+            print("エラー: 有効な数値特徴量列がありません")
+            return None
 
         valid_mask = y.notna() & y.isin([0, 1])
         X_clean = X[valid_mask].copy()
